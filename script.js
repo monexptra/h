@@ -1,23 +1,3 @@
-    // Update mobile menu bar and details after Firebase sync
-    const mobileProfileNameEl = document.getElementById('mobileProfileName');
-    const mobileProfileEmailEl = document.getElementById('mobileProfileEmail');
-    const mobileProfileMemberEl = document.getElementById('mobileProfileMember');
-    const mobileProfilePhotoEl = document.getElementById('mobileProfilePhoto');
-    if (currentUser) {
-        if (mobileProfileNameEl) mobileProfileNameEl.textContent = currentUser.name || '';
-        if (mobileProfileEmailEl) mobileProfileEmailEl.textContent = currentUser.email || '';
-        if (mobileProfilePhotoEl && currentUser.photo) mobileProfilePhotoEl.src = currentUser.photo;
-        if (mobileProfileMemberEl && budgets.length > 0) {
-            // Show member since first budget saved
-            const firstBudget = budgets[budgets.length - 1];
-            if (firstBudget && firstBudget.saved_at) {
-                const date = new Date(firstBudget.saved_at);
-                const month = date.toLocaleString('default', { month: 'short' });
-                const year = date.getFullYear();
-                mobileProfileMemberEl.textContent = `${month} ${year}`;
-            }
-        }
-    }
 // Initialize Firebase
 const firebaseConfig = {
     apiKey: "AIzaSyAZBx_u3YwqeU9oKD99UBmoLme8rkTTz04",
@@ -154,7 +134,6 @@ function continueAsGuest() {
 // Sync data from Firebase when user signs in
 function syncFromFirebase() {
     if (!currentUser || currentUser.uid.startsWith('guest_')) {
-        alert('Not signed in. Please sign in with Google.');
         console.log('No user or guest user, skipping sync');
         return;
     }
@@ -186,10 +165,7 @@ function syncFromFirebase() {
                         categories: budget.categories || '',
                         bar_values: budget.bar_values || ''
                     }));
-                    console.log('Budgets loaded:', budgets.length, budgets);
-                } else {
-                    budgets = [];
-                    console.warn('No budgets found in Firebase.');
+                    console.log('Budgets loaded:', budgets.length);
                 }
                 
                 // Load expenses from desktop app format directly into memory
@@ -204,13 +180,11 @@ function syncFromFirebase() {
                         note: expense.note || '',
                         type: 'expense'
                     }));
-                    console.log('Expenses loaded:', transactions.length, transactions);
+                    console.log('Expenses loaded:', transactions.length);
+                    
                     if (transactions.length > 0) {
                         console.log('Sample transaction:', transactions[0]);
                     }
-                } else {
-                    transactions = [];
-                    console.warn('No expenses found in Firebase.');
                 }
                 
                 // Load currency settings from desktop app
@@ -240,45 +214,33 @@ function syncFromFirebase() {
                     console.log('Calling updateDashboard()');
                     updateDashboard();
                 }
-                // Always refresh both desktop and mobile month dropdowns after budgets load
                 if (typeof populateMonthDropdown === 'function') {
                     console.log('Calling populateMonthDropdown()');
                     populateMonthDropdown();
                 }
-                if (typeof window.populateMonthDropdown === 'function') {
-                    window.populateMonthDropdown();
-                }
-                // Always update dropdown text
-                const datePickerDisplay = document.getElementById('datePickerDisplay');
-                if (datePickerDisplay && budgets.length > 0) {
-                    datePickerDisplay.textContent = budgets[0].date_range;
-                } else if (datePickerDisplay) {
-                    datePickerDisplay.textContent = 'All';
-                }
+                
                 // Force reload transaction table if it exists
                 if (typeof renderTransactionsTable === 'function') {
                     console.log('Calling renderTransactionsTable()');
                     renderTransactionsTable();
                 }
+                
                 // Force update chart
                 if (typeof updateSevenDayChart === 'function') {
                     console.log('Calling updateSevenDayChart()');
                     updateSevenDayChart();
                 }
+                
                 // Update budget overview
                 if (typeof updateBudgetOverview === 'function') {
                     console.log('Calling updateBudgetOverview()');
                     updateBudgetOverview();
                 }
+                
                 // Update summary table
                 if (typeof updateSummaryTable === 'function') {
                     console.log('Calling updateSummaryTable()');
                     updateSummaryTable();
-                }
-                // Update profile modal if open
-                const profileModal = document.getElementById('profileModal');
-                if (profileModal && profileModal.classList.contains('active')) {
-                    openProfileModal(document.getElementById('profileBtn'));
                 }
                 
                 // Set up real-time sync after initial load
@@ -1929,13 +1891,6 @@ function updateSevenDayChart() {
         return;
     }
 
-    // Dynamically set bar thickness for mobile
-    let barThickness = 40;
-    let maxBarThickness = 50;
-    if (window.innerWidth <= 480) {
-        barThickness = 20;
-        maxBarThickness = 24;
-    }
     sevenDayChart = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -1948,8 +1903,8 @@ function updateSevenDayChart() {
                 borderWidth: 0,
                 borderRadius: 6,
                 hoverBackgroundColor: '#76C8E8',
-                barThickness: barThickness,
-                maxBarThickness: maxBarThickness
+                barThickness: 40,
+                maxBarThickness: 50
             }]
         },
         options: {
@@ -2714,7 +2669,7 @@ function openProfileModal(btnElement) {
     const budgetAmount = currentBudget ? parseFloat(currentBudget.budget) || 0 : 0;
     
     // Calculate total income (sum of all budgets)
-    const totalIncome = budgets.reduce((sum, b) => sum + (parseFloat(b.budget) || 0), 0);
+    const totalIncome = budgets.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0);
 
     // Calculate total spend (sum of all expenses)
     const totalSpend = transactions.reduce((sum, t) => sum + Math.abs(parseFloat(t.amount) || 0), 0);
