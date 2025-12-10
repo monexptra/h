@@ -134,6 +134,7 @@ function continueAsGuest() {
 // Sync data from Firebase when user signs in
 function syncFromFirebase() {
     if (!currentUser || currentUser.uid.startsWith('guest_')) {
+        alert('Not signed in. Please sign in with Google.');
         console.log('No user or guest user, skipping sync');
         return;
     }
@@ -165,7 +166,10 @@ function syncFromFirebase() {
                         categories: budget.categories || '',
                         bar_values: budget.bar_values || ''
                     }));
-                    console.log('Budgets loaded:', budgets.length);
+                    console.log('Budgets loaded:', budgets.length, budgets);
+                } else {
+                    budgets = [];
+                    console.warn('No budgets found in Firebase.');
                 }
                 
                 // Load expenses from desktop app format directly into memory
@@ -180,11 +184,13 @@ function syncFromFirebase() {
                         note: expense.note || '',
                         type: 'expense'
                     }));
-                    console.log('Expenses loaded:', transactions.length);
-                    
+                    console.log('Expenses loaded:', transactions.length, transactions);
                     if (transactions.length > 0) {
                         console.log('Sample transaction:', transactions[0]);
                     }
+                } else {
+                    transactions = [];
+                    console.warn('No expenses found in Firebase.');
                 }
                 
                 // Load currency settings from desktop app
@@ -217,30 +223,40 @@ function syncFromFirebase() {
                 if (typeof populateMonthDropdown === 'function') {
                     console.log('Calling populateMonthDropdown()');
                     populateMonthDropdown();
+                } else if (typeof window.populateMonthDropdown === 'function') {
+                    window.populateMonthDropdown();
                 }
-                
+                // Always update dropdown text
+                const datePickerDisplay = document.getElementById('datePickerDisplay');
+                if (datePickerDisplay && budgets.length > 0) {
+                    datePickerDisplay.textContent = budgets[0].date_range;
+                } else if (datePickerDisplay) {
+                    datePickerDisplay.textContent = 'All';
+                }
                 // Force reload transaction table if it exists
                 if (typeof renderTransactionsTable === 'function') {
                     console.log('Calling renderTransactionsTable()');
                     renderTransactionsTable();
                 }
-                
                 // Force update chart
                 if (typeof updateSevenDayChart === 'function') {
                     console.log('Calling updateSevenDayChart()');
                     updateSevenDayChart();
                 }
-                
                 // Update budget overview
                 if (typeof updateBudgetOverview === 'function') {
                     console.log('Calling updateBudgetOverview()');
                     updateBudgetOverview();
                 }
-                
                 // Update summary table
                 if (typeof updateSummaryTable === 'function') {
                     console.log('Calling updateSummaryTable()');
                     updateSummaryTable();
+                }
+                // Update profile modal if open
+                const profileModal = document.getElementById('profileModal');
+                if (profileModal && profileModal.classList.contains('active')) {
+                    openProfileModal(document.getElementById('profileBtn'));
                 }
                 
                 // Set up real-time sync after initial load
@@ -2669,7 +2685,7 @@ function openProfileModal(btnElement) {
     const budgetAmount = currentBudget ? parseFloat(currentBudget.budget) || 0 : 0;
     
     // Calculate total income (sum of all budgets)
-    const totalIncome = budgets.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0);
+    const totalIncome = budgets.reduce((sum, b) => sum + (parseFloat(b.budget) || 0), 0);
 
     // Calculate total spend (sum of all expenses)
     const totalSpend = transactions.reduce((sum, t) => sum + Math.abs(parseFloat(t.amount) || 0), 0);
